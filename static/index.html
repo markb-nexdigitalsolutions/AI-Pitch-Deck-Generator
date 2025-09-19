@@ -1,0 +1,578 @@
+
+# static/index.html
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Pitch Deck Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .slide-preview { aspect-ratio: 16/9; background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); }
+    .slide-content { background:#fff;border-radius:8px;padding:20px;margin:10px;height:calc(100% - 20px);box-shadow:0 4px 6px rgba(0,0,0,.1); }
+    .generating { background:linear-gradient(90deg,#3b82f6,#8b5cf6,#3b82f6);background-size:200% 100%;animation:shimmer 2s infinite; }
+    @keyframes shimmer { 0%{background-position:-200% 0}100%{background-position:200% 0} }
+    .fade-in { animation:fadeIn .5s ease-in; } @keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+    .slide-nav-btn.active { background:#2563eb;color:#fff; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <!-- Header -->
+  <header class="bg-white shadow-sm border-b">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+            <span class="text-white font-bold text-sm">AI</span>
+          </div>
+          <h1 class="text-2xl font-bold text-gray-900">AI Pitch Deck Generator</h1>
+        </div>
+        <div class="text-sm text-gray-600">🤖 Powered by AI</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Input Section -->
+    <div id="inputSection" class="max-w-4xl mx-auto mb-8">
+      <div class="bg-white rounded-xl shadow-lg p-8 text-center">
+        <div class="mb-6">
+          <h2 class="text-3xl font-bold text-gray-900 mb-4">Describe Your Business Idea</h2>
+          <p class="text-lg text-gray-600">Tell us about your startup and we'll create a professional pitch deck for you</p>
+        </div>
+
+        <div class="max-w-2xl mx-auto">
+          <textarea id="businessIdea" rows="6" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg" placeholder="Example: We're building a mobile app that helps busy professionals find and book healthy meal prep services..."></textarea>
+
+          <div class="mt-6 space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <input type="text" id="companyName" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Company Name">
+              <input type="text" id="founderName" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Your Name">
+              <input type="email" id="contactEmail" class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Email">
+            </div>
+
+            <button id="generateBtn" class="w-full md:w-auto px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300 font-semibold text-lg">
+              🚀 Generate My Pitch Deck
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Section -->
+    <div id="loadingSection" class="hidden max-w-4xl mx-auto mb-8">
+      <div class="bg-white rounded-xl shadow-lg p-8">
+        <div class="text-center">
+          <div class="w-16 h-16 generating rounded-full mx-auto mb-4"></div>
+          <h3 class="text-2xl font-bold text-gray-900 mb-2">Creating Your Pitch Deck</h3>
+          <p id="loadingText" class="text-lg text-gray-600">Analyzing your business idea...</p>
+          <div class="mt-6 w-full bg-gray-200 rounded-full h-2">
+            <div id="loadingProgress" class="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all duration-500" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div id="resultsSection" class="hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Slide Preview -->
+        <div class="lg:col-span-2 bg-white rounded-xl shadow-lg p-6">
+          <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-semibold text-gray-900">Your Pitch Deck</h3>
+            <div class="flex space-x-2">
+              <button id="generatePPTX" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm">📊 Download PPTX</button>
+              <button id="generatePDF" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm">📄 Download PDF</button>
+              <button id="regenerateBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">🔄 Regenerate</button>
+            </div>
+          </div>
+
+          <div id="slidePreview" class="slide-preview rounded-lg overflow-hidden mb-4">
+            <div class="slide-content">
+              <div id="slideContent"><!-- Dynamic slide content --></div>
+            </div>
+          </div>
+
+          <!-- Slide Navigation -->
+          <div class="flex justify-center">
+            <div id="slideNav" class="flex space-x-1 bg-gray-100 rounded-lg p-1 overflow-x-auto">
+              <button class="slide-nav-btn active px-3 py-1 rounded text-sm whitespace-nowrap" data-slide="0">Title</button>
+              <button class="slide-nav-btn px-3 py-1 rounded text-sm whitespace-nowrap" data-slide="1">Problem</button>
+              <button class="slide-nav-btn px-3 py-1 rounded text-sm whitespace-nowrap" data-slide="2">Solution</button>
+              <button class="slide-nav-btn px-3 py-1 rounded text-sm whitespace-nowrap" data-slide="3">Market</button>
+              <button class="slide-nav-btn px-3 py-1 rounded text-sm whitespace-nowrap" data-slide="4">Business Model</button>
+              <button class="slide-nav-btn px-3 py-1 rounded text-sm whitespace-nowrap" data-slide="5">Competition</button>
+              <button class="slide-nav-btn px-3 py-1 rounded text-sm whitespace-nowrap" data-slide="6">Traction</button>
+              <button class="slide-nav-btn px-3 py-1 rounded text-sm whitespace-nowrap" data-slide="7">Financials</button>
+              <button class="slide-nav-btn px-3 py-1 rounded text-sm whitespace-nowrap" data-slide="8">Funding</button>
+              <button class="slide-nav-btn px-3 py-1 rounded text-sm whitespace-nowrap" data-slide="9">Team</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide List -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Slide Overview</h3>
+          <div id="slideList" class="space-y-2"><!-- Dynamic slide list --></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentSlide = 0;
+    let pitchDeckData = {};
+
+    document.addEventListener('DOMContentLoaded', () => {
+      setupEventListeners();
+    });
+
+    function setupEventListeners() {
+      document.getElementById('generateBtn').addEventListener('click', generatePitchDeck);
+      document.getElementById('regenerateBtn').addEventListener('click', regeneratePitchDeck);
+      document.getElementById('generatePDF').addEventListener('click', generatePDF);
+      document.getElementById('generatePPTX').addEventListener('click', generatePPTX);
+
+      document.getElementById('slideNav').addEventListener('click', (e) => {
+        const btn = e.target.closest('.slide-nav-btn');
+        if (!btn) return;
+        currentSlide = parseInt(btn.dataset.slide || '0', 10);
+        updateSlideNavigation();
+        updateSlidePreview();
+        updateSlideList();
+      });
+    }
+
+    async function generatePitchDeck() {
+      const businessIdea = document.getElementById('businessIdea').value.trim();
+      const companyName = document.getElementById('companyName').value.trim();
+      const founderName = document.getElementById('founderName').value.trim();
+      const email = document.getElementById('contactEmail').value.trim();
+
+      if (!businessIdea) { alert('Please describe your business idea first!'); return; }
+
+      document.getElementById('inputSection').classList.add('hidden');
+      document.getElementById('loadingSection').classList.remove('hidden');
+
+      const steps = [
+        "Analyzing your business idea...",
+        "Identifying target market...",
+        "Generating problem statement...",
+        "Creating solution framework...",
+        "Developing business model...",
+        "Researching competition...",
+        "Building financial projections...",
+        "Finalizing pitch deck..."
+      ];
+      for (let i = 0; i < steps.length; i++) {
+        document.getElementById('loadingText').textContent = steps[i];
+        document.getElementById('loadingProgress').style.width = `${((i+1)/steps.length)*100}%`;
+        await new Promise(r => setTimeout(r, 800));
+      }
+
+      pitchDeckData = generateAIContent(businessIdea, companyName, founderName, email);
+
+      document.getElementById('loadingSection').classList.add('hidden');
+      document.getElementById('resultsSection').classList.remove('hidden');
+      document.getElementById('resultsSection').classList.add('fade-in');
+
+      currentSlide = 0;
+      updateSlideNavigation();
+      updateSlidePreview();
+      updateSlideList();
+    }
+
+    function regeneratePitchDeck() {
+      const idea = document.getElementById('businessIdea').value.trim();
+      const company = document.getElementById('companyName').value.trim();
+      const founder = document.getElementById('founderName').value.trim();
+      const email = document.getElementById('contactEmail').value.trim();
+      pitchDeckData = generateAIContent(idea + ' innovative', company, founder, email);
+      updateSlidePreview();
+      updateSlideList();
+    }
+
+    function updateSlideNavigation() {
+      document.querySelectorAll('.slide-nav-btn').forEach((btn, idx) => {
+        btn.classList.toggle('active', idx === currentSlide);
+      });
+    }
+
+    function updateSlidePreview() {
+      const slideContent = document.getElementById('slideContent');
+      const slides = [
+        generateTitleSlide(),
+        generateProblemSlide(),
+        generateSolutionSlide(),
+        generateMarketSlide(),
+        generateBusinessModelSlide(),
+        generateCompetitionSlide(),
+        generateTractionSlide(),
+        generateFinancialsSlide(),
+        generateFundingSlide(),
+        generateTeamSlide()
+      ];
+      slideContent.innerHTML = slides[currentSlide];
+    }
+
+    function updateSlideList() {
+      const slideList = document.getElementById('slideList');
+      const names = ['Title','Problem','Solution','Market','Business Model','Competition','Traction','Financials','Funding','Team'];
+      slideList.innerHTML = names.map((n,i)=>`
+        <div class="flex items-center p-2 rounded cursor-pointer hover:bg-gray-50 ${i===currentSlide?'bg-blue-50 border-l-4 border-blue-500':''}" onclick="goToSlide(${i})">
+          <div class="w-8 h-8 rounded-full ${i===currentSlide?'bg-blue-500':'bg-gray-300'} flex items-center justify-center text-white text-sm font-medium mr-3">${i+1}</div>
+          <span class="text-sm font-medium text-gray-700">${n}</span>
+        </div>
+      `).join('');
+    }
+    function goToSlide(i){ currentSlide=i; updateSlideNavigation(); updateSlidePreview(); updateSlideList(); }
+
+    // --- Rule-based “AI” ---
+    function generateAIContent(idea, company, founder, email){
+      const kw = (idea||'').toLowerCase();
+      let industry='Technology';
+      if (/food|meal|restaurant/.test(kw)) industry='Food & Beverage';
+      else if (/health|medical|fitness/.test(kw)) industry='Healthcare';
+      else if (/education|learning|student/.test(kw)) industry='Education';
+      else if (/finance|money|payment/.test(kw)) industry='Fintech';
+      const isApp = /app|mobile/.test(kw);
+      const isPlatform = /platform|marketplace/.test(kw);
+      const isAI = /ai|artificial intelligence|machine learning/.test(kw);
+      return {
+        companyName: company || extractCompanyName(idea) || 'YourStartup',
+        tagline: generateTagline(idea, industry),
+        industry,
+        problem: generateProblem(idea, industry),
+        solution: generateSolution(idea, isApp, isPlatform, isAI),
+        marketSize: generateMarketSize(industry),
+        targetMarket: generateTargetMarket(idea, industry),
+        businessModel: generateBusinessModel(idea, isApp, isPlatform),
+        competition: generateCompetition(industry),
+        competitiveAdvantage: generateAdvantage(idea, isAI),
+        traction: generateTraction(),
+        financials: generateFinancials(),
+        funding: generateFunding(),
+        team: generateTeam(founder || 'Founder'),
+        contact: { email: email || 'hello@yourstartup.com', founder: founder || 'Founder Name' }
+      };
+    }
+    function extractCompanyName(idea){
+      const words=(idea||'').split(/\s+/);
+      for (let w of words){
+        if (w.length>3 && /^[A-Z]/.test(w) && !['We','Our','The','This','That'].includes(w)) return w.replace(/[^A-Za-z0-9]/g,'');
+      }
+      return null;
+    }
+    function generateTagline(_,ind){ return ({Technology:"Revolutionizing how people connect and work","Food & Beverage":"Making healthy eating convenient and accessible",Healthcare:"Empowering better health outcomes through innovation",Education:"Transforming learning for the digital age",Fintech:"Simplifying financial services for everyone"}[ind] || "Innovation that makes a difference"); }
+    function generateProblem(idea,ind){
+      if (/meal|food/.test(idea)) return "Busy professionals struggle to maintain healthy eating habits due to time constraints and limited access to nutritious, convenient meal options.";
+      if (/productivity|work/.test(idea)) return "Remote teams face challenges with collaboration, communication, and maintaining productivity in distributed environments.";
+      return `Current solutions in the ${ind.toLowerCase()} space are fragmented, expensive, and don't address core user needs.`;
+    }
+    function generateSolution(_,isApp,isPlatform,isAI){
+      let s="Our innovative solution ";
+      if (isApp) s+="leverages mobile technology ";
+      if (isPlatform) s+="creates a comprehensive platform ";
+      if (isAI) s+="uses artificial intelligence ";
+      s+="to deliver a seamless, efficient, and personalized experience that saves time and provides measurable value.";
+      return s;
+    }
+    function generateMarketSize(ind){ return ({Technology:"$2.8T global technology market","Food & Beverage":"$8.7T global food market",Healthcare:"$4.5T global healthcare market",Education:"$6.2T global education market",Fintech:"$310B global fintech market"}[ind] || "$50B addressable market opportunity"); }
+    function generateTargetMarket(idea){
+      if (/professional|business/.test(idea)) return "Working professionals aged 25–45 with household incomes above $50K who value convenience and quality.";
+      if (/student|education/.test(idea)) return "Students and young professionals seeking accessible learning and development.";
+      return "Tech-savvy consumers who adopt premium digital experiences.";
+    }
+    function generateBusinessModel(_,isApp,isPlatform){ if (isPlatform) return "Marketplace commission model (5–10% per transaction)"; if (isApp) return "Freemium SaaS model ($9.99/month premium)"; return "Subscription-based recurring revenue with tiered pricing"; }
+    function generateCompetition(ind){ return ({Technology:"Microsoft, Google, Amazon","Food & Beverage":"UberEats, DoorDash, Blue Apron",Healthcare:"Teladoc, Amwell, Epic Systems",Education:"Coursera, Udemy, Khan Academy",Fintech:"PayPal, Square, Stripe"}[ind] || "Traditional players and emerging startups"); }
+    function generateAdvantage(_,isAI){ return "Our edge: " + (isAI?"proprietary AI, ":"") + "superior UX, network effects, and a focused niche."; }
+    function generateTraction(){ return { users:"5,000+ beta users", revenue:"Pre-revenue with strong engagement", growth:"40% MoM user growth", partnerships:"3 strategic partnerships" }; }
+    function generateFinancials(){ return { year1:"$250K", year2:"$1.2M", year3:"$5.8M", assumptions:"15% monthly user growth, 5% conversion, $25 ARPU" }; }
+    function generateFunding(){ return { amount:"$1.5M", use:"40% product, 35% marketing, 15% team, 10% ops" }; }
+    function generateTeam(founder){ return { founder:`${founder} — 10+ yrs relevant experience`, team:"Technical team with top-tier backgrounds and domain expertise" }; }
+
+    // Slides (preview)
+    function generateTitleSlide(){ return `
+      <div class="text-center h-full flex flex-col justify-center">
+        <div class="mb-8">
+          <div class="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl mx-auto mb-6 flex items-center justify-center">
+            <span class="text-white font-bold text-xl">${pitchDeckData.companyName.charAt(0)}</span>
+          </div>
+          <h1 class="text-4xl font-bold text-gray-800 mb-4">${pitchDeckData.companyName}</h1>
+          <p class="text-xl text-gray-600 mb-2">${pitchDeckData.tagline}</p>
+          <p class="text-lg text-blue-600 font-medium">${pitchDeckData.industry}</p>
+        </div>
+        <div class="text-sm text-gray-500">AI-Generated Pitch Deck • ${new Date().getFullYear()}</div>
+      </div>`; }
+    function generateProblemSlide(){ return `
+      <div class="h-full flex flex-col">
+        <h2 class="text-3xl font-bold text-gray-800 mb-8">The Problem</h2>
+        <div class="flex-1">
+          <div class="bg-red-50 border-l-4 border-red-400 p-6 mb-6">
+            <p class="text-lg text-gray-700 leading-relaxed">${pitchDeckData.problem}</p>
+          </div>
+          <div class="bg-blue-50 border-l-4 border-blue-400 p-6">
+            <h3 class="font-semibold text-gray-800 mb-2">Market Opportunity</h3>
+            <p class="text-lg text-blue-700 font-medium">${pitchDeckData.marketSize}</p>
+          </div>
+        </div>
+      </div>`; }
+    function generateSolutionSlide(){ return `
+      <div class="h-full flex flex-col">
+        <h2 class="text-3xl font-bold text-gray-800 mb-8">Our Solution</h2>
+        <div class="flex-1">
+          <div class="mb-6">
+            <p class="text-lg text-gray-700 leading-relaxed">${pitchDeckData.solution}</p>
+          </div>
+          <div class="grid grid-cols-2 gap-4 mt-8">
+            <div class="bg-green-50 p-4 rounded-lg text-center"><div class="text-2xl mb-2">⚡</div><div class="font-semibold text-gray-800">Fast</div></div>
+            <div class="bg-blue-50 p-4 rounded-lg text-center"><div class="text-2xl mb-2">🎯</div><div class="font-semibold text-gray-800">Targeted</div></div>
+            <div class="bg-purple-50 p-4 rounded-lg text-center"><div class="text-2xl mb-2">💡</div><div class="font-semibold text-gray-800">Innovative</div></div>
+            <div class="bg-yellow-50 p-4 rounded-lg text-center"><div class="text-2xl mb-2">📈</div><div class="font-semibold text-gray-800">Scalable</div></div>
+          </div>
+        </div>
+      </div>`; }
+    function generateMarketSlide(){ return `
+      <div class="h-full flex flex-col">
+        <h2 class="text-3xl font-bold text-gray-800 mb-8">Market & Opportunity</h2>
+        <div class="flex-1 space-y-6">
+          <div class="bg-blue-50 border-l-4 border-blue-400 p-6">
+            <h3 class="text-xl font-semibold text-gray-800 mb-2">Target Market</h3>
+            <p class="text-gray-700">${pitchDeckData.targetMarket}</p>
+          </div>
+          <div class="bg-green-50 border-l-4 border-green-400 p-6">
+            <h3 class="text-xl font-semibold text-gray-800 mb-2">Market Size</h3>
+            <p class="text-gray-700">${pitchDeckData.marketSize}</p>
+          </div>
+          <div class="text-center p-4 bg-gray-50 rounded-lg">
+            <div class="text-3xl font-bold text-blue-600">📊</div>
+            <div class="text-sm text-gray-600 mt-2">Significant growth opportunity</div>
+          </div>
+        </div>
+      </div>`; }
+    function generateBusinessModelSlide(){ return `
+      <div class="h-full flex flex-col">
+        <h2 class="text-3xl font-bold text-gray-800 mb-8">Business Model</h2>
+        <div class="flex-1 space-y-6">
+          <div class="bg-green-50 border-l-4 border-green-400 p-6">
+            <h3 class="text-xl font-semibold text-gray-800 mb-2">Revenue Model</h3>
+            <p class="text-lg text-gray-700">${pitchDeckData.businessModel}</p>
+          </div>
+          <div class="grid grid-cols-3 gap-4">
+            <div class="bg-blue-50 p-4 rounded-lg text-center"><div class="text-2xl font-bold text-blue-600 mb-1">💰</div><div class="text-sm text-gray-600">Recurring</div></div>
+            <div class="bg-purple-50 p-4 rounded-lg text-center"><div class="text-2xl font-bold text-purple-600 mb-1">📈</div><div class="text-sm text-gray-600">Scalable</div></div>
+            <div class="bg-green-50 p-4 rounded-lg text-center"><div class="text-2xl font-bold text-green-600 mb-1">🎯</div><div class="text-sm text-gray-600">High Margin</div></div>
+          </div>
+        </div>
+      </div>`; }
+    function generateCompetitionSlide(){ return `
+      <div class="h-full flex flex-col">
+        <h2 class="text-3xl font-bold text-gray-800 mb-8">Competition & Advantage</h2>
+        <div class="flex-1 space-y-6">
+          <div class="bg-red-50 border-l-4 border-red-400 p-6">
+            <h3 class="text-xl font-semibold text-gray-800 mb-2">Key Competitors</h3>
+            <p class="text-gray-700">${pitchDeckData.competition}</p>
+          </div>
+          <div class="bg-yellow-50 border-l-4 border-yellow-400 p-6">
+            <h3 class="text-xl font-semibold text-gray-800 mb-2">🏆 Our Competitive Advantage</h3>
+            <p class="text-gray-700">${pitchDeckData.competitiveAdvantage}</p>
+          </div>
+        </div>
+      </div>`; }
+    function generateTractionSlide(){ return `
+      <div class="h-full flex flex-col">
+        <h2 class="text-3xl font-bold text-gray-800 mb-8">Traction & Growth</h2>
+        <div class="flex-1 grid grid-cols-2 gap-6">
+          <div class="bg-blue-50 p-6 rounded-lg text-center"><div class="text-3xl font-bold text-blue-600 mb-2">👥</div><div class="text-sm text-gray-600 mb-1">Users</div><div class="font-semibold text-gray-800">${pitchDeckData.traction.users}</div></div>
+          <div class="bg-green-50 p-6 rounded-lg text-center"><div class="text-3xl font-bold text-green-600 mb-2">📈</div><div class="text-sm text-gray-600 mb-1">Growth</div><div class="font-semibold text-gray-800">${pitchDeckData.traction.growth}</div></div>
+          <div class="bg-purple-50 p-6 rounded-lg text-center"><div class="text-3xl font-bold text-purple-600 mb-2">💼</div><div class="text-sm text-gray-600 mb-1">Partnerships</div><div class="font-semibold text-gray-800">${pitchDeckData.traction.partnerships}</div></div>
+          <div class="bg-yellow-50 p-6 rounded-lg text-center"><div class="text-3xl font-bold text-yellow-600 mb-2">💰</div><div class="text-sm text-gray-600 mb-1">Revenue</div><div class="font-semibold text-gray-800">${pitchDeckData.traction.revenue}</div></div>
+        </div>
+      </div>`; }
+    function generateFinancialsSlide(){ return `
+      <div class="h-full flex flex-col">
+        <h2 class="text-3xl font-bold text-gray-800 mb-8">Financial Projections</h2>
+        <div class="flex-1">
+          <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="bg-blue-50 p-4 rounded-lg text-center"><div class="text-sm text-gray-600 mb-1">Year 1</div><div class="text-xl font-bold text-blue-600">${pitchDeckData.financials.year1}</div></div>
+            <div class="bg-green-50 p-4 rounded-lg text-center"><div class="text-sm text-gray-600 mb-1">Year 2</div><div class="text-xl font-bold text-green-600">${pitchDeckData.financials.year2}</div></div>
+            <div class="bg-purple-50 p-4 rounded-lg text-center"><div class="text-sm text-gray-600 mb-1">Year 3</div><div class="text-xl font-bold text-purple-600">${pitchDeckData.financials.year3}</div></div>
+          </div>
+          <div class="bg-gray-50 border-l-4 border-gray-400 p-6">
+            <h3 class="font-semibold text-gray-800 mb-2">📊 Key Assumptions</h3>
+            <p class="text-gray-700">${pitchDeckData.financials.assumptions}</p>
+          </div>
+        </div>
+      </div>`; }
+    function generateFundingSlide(){ return `
+      <div class="h-full flex flex-col">
+        <h2 class="text-3xl font-bold text-gray-800 mb-8">Funding Request</h2>
+        <div class="flex-1">
+          <div class="text-center mb-8">
+            <div class="text-5xl font-bold text-green-600 mb-2">${pitchDeckData.funding.amount}</div>
+            <div class="text-lg text-gray-600">Seeking Investment</div>
+          </div>
+          <div class="bg-blue-50 border-l-4 border-blue-400 p-6">
+            <h3 class="text-xl font-semibold text-gray-800 mb-4">💡 Use of Funds</h3>
+            <p class="text-gray-700 leading-relaxed">${pitchDeckData.funding.use}</p>
+          </div>
+          <div class="mt-6 text-center"><div class="text-sm text-gray-500">Ready to scale with strategic investors</div></div>
+        </div>
+      </div>`; }
+    function generateTeamSlide(){ return `
+      <div class="h-full flex flex-col">
+        <h2 class="text-3xl font-bold text-gray-800 mb-8">Our Team</h2>
+        <div class="flex-1 space-y-6">
+          <div class="bg-blue-50 border-l-4 border-blue-400 p-6">
+            <h3 class="text-xl font-semibold text-gray-800 mb-3">👤 Founder</h3>
+            <p class="text-gray-700">${pitchDeckData.team.founder}</p>
+          </div>
+          <div class="bg-green-50 border-l-4 border-green-400 p-6">
+            <h3 class="text-xl font-semibold text-gray-800 mb-3">🌟 Team</h3>
+            <p class="text-gray-700">${pitchDeckData.team.team}</p>
+          </div>
+          <div class="text-center p-6 bg-gray-50 rounded-lg">
+            <div class="text-2xl mb-2">🚀</div>
+            <div class="font-semibold text-gray-800 mb-2">Ready to Execute</div>
+            <div class="text-sm text-gray-600">Contact: ${pitchDeckData.contact.email}</div>
+          </div>
+        </div>
+      </div>`; }
+
+    // Exporters
+    function generatePPTX(){
+      const pptx = new PptxGenJS();
+      pptx.author = pitchDeckData.contact.founder || 'AI Pitch Deck Generator';
+      pptx.company = pitchDeckData.companyName;
+      pptx.title = `${pitchDeckData.companyName} - Pitch Deck`;
+      pptx.subject = 'Business Pitch Presentation';
+      pptx.defineLayout({ name:'CUSTOM', width:10, height:5.625 }); pptx.layout='CUSTOM';
+
+      let slide = pptx.addSlide();
+      slide.background = { fill:'F1F5F9' };
+      slide.addText(pitchDeckData.companyName,{x:1,y:1.5,w:8,h:1,fontSize:44,bold:true,color:'1E293B',align:'center'});
+      slide.addText(pitchDeckData.tagline,{x:1,y:2.7,w:8,h:.8,fontSize:24,color:'475569',align:'center'});
+      slide.addText(pitchDeckData.industry,{x:1,y:3.7,w:8,h:.5,fontSize:18,color:'3B82F6',bold:true,align:'center'});
+      slide.addText('AI-Generated Pitch Deck',{x:1,y:4.8,w:8,h:.3,fontSize:12,color:'94A3B8',align:'center'});
+
+      slide=pptx.addSlide(); slide.background={fill:'FFFFFF'};
+      slide.addText('The Problem',{x:.5,y:.5,w:9,h:.8,fontSize:36,bold:true,color:'1E293B'});
+      slide.addText(pitchDeckData.problem,{x:.5,y:1.5,w:9,h:2,fontSize:18,color:'374151'});
+      slide.addText('Market Opportunity',{x:.5,y:3.8,w:9,h:.5,fontSize:20,bold:true,color:'3B82F6'});
+      slide.addText(pitchDeckData.marketSize,{x:.5,y:4.3,w:9,h:.8,fontSize:16,color:'1D4ED8'});
+
+      slide=pptx.addSlide(); slide.background={fill:'FFFFFF'};
+      slide.addText('Our Solution',{x:.5,y:.5,w:9,h:.8,fontSize:36,bold:true,color:'1E293B'});
+      slide.addText(pitchDeckData.solution,{x:.5,y:1.5,w:9,h:2.5,fontSize:18,color:'374151'});
+
+      slide=pptx.addSlide(); slide.background={fill:'FFFFFF'};
+      slide.addText('Market & Opportunity',{x:.5,y:.5,w:9,h:.8,fontSize:36,bold:true,color:'1E293B'});
+      slide.addText('Target Market',{x:.5,y:1.5,w:9,h:.5,fontSize:20,bold:true,color:'3B82F6'});
+      slide.addText(pitchDeckData.targetMarket,{x:.5,y:2,w:9,h:1.2,fontSize:16,color:'374151'});
+      slide.addText('Market Size',{x:.5,y:3.5,w:9,h:.5,fontSize:20,bold:true,color:'059669'});
+      slide.addText(pitchDeckData.marketSize,{x:.5,y:4,w:9,h:1,fontSize:16,color:'374151'});
+
+      slide=pptx.addSlide(); slide.background={fill:'FFFFFF'};
+      slide.addText('Business Model',{x:.5,y:.5,w:9,h:.8,fontSize:36,bold:true,color:'1E293B'});
+      slide.addText('Revenue Model',{x:.5,y:1.5,w:9,h:.5,fontSize:20,bold:true,color:'059669'});
+      slide.addText(pitchDeckData.businessModel,{x:.5,y:2,w:9,h:1.5,fontSize:18,color:'374151'});
+
+      slide=pptx.addSlide(); slide.background={fill:'FFFFFF'};
+      slide.addText('Competition & Advantage',{x:.5,y:.5,w:9,h:.8,fontSize:36,bold:true,color:'1E293B'});
+      slide.addText('Key Competitors',{x:.5,y:1.5,w:9,h:.5,fontSize:20,bold:true,color:'DC2626'});
+      slide.addText(pitchDeckData.competition,{x:.5,y:2,w:9,h:1,fontSize:16,color:'374151'});
+      slide.addText('Our Advantage',{x:.5,y:3.2,w:9,h:.5,fontSize:20,bold:true,color:'F59E0B'});
+      slide.addText(pitchDeckData.competitiveAdvantage,{x:.5,y:3.7,w:9,h:1.5,fontSize:16,color:'374151'});
+
+      slide=pptx.addSlide(); slide.background={fill:'FFFFFF'};
+      slide.addText('Traction & Growth',{x:.5,y:.5,w:9,h:.8,fontSize:36,bold:true,color:'1E293B'});
+      const metrics=[
+        {label:'Users',value:pitchDeckData.traction.users,color:'3B82F6'},
+        {label:'Growth',value:pitchDeckData.traction.growth,color:'059669'},
+        {label:'Partnerships',value:pitchDeckData.traction.partnerships,color:'7C3AED'},
+        {label:'Revenue',value:pitchDeckData.traction.revenue,color:'F59E0B'}
+      ];
+      metrics.forEach((m,i)=>{
+        const x=.5+(i%2)*4.5, y=1.8+Math.floor(i/2)*1.5;
+        slide.addShape(pptx.ShapeType.rect,{x,y,w:4,h:1.2,fill:{color:m.color,transparency:90},line:{color:m.color,width:2}});
+        slide.addText(m.label,{x,y:y+.1,w:4,h:.4,fontSize:14,bold:true,color:m.color,align:'center'});
+        slide.addText(m.value,{x,y:y+.5,w:4,h:.6,fontSize:12,color:'374151',align:'center'});
+      });
+
+      slide=pptx.addSlide(); slide.background={fill:'FFFFFF'};
+      slide.addText('Financial Projections',{x:.5,y:.5,w:9,h:.8,fontSize:36,bold:true,color:'1E293B'});
+      const years=[
+        {year:'Year 1',rev:pitchDeckData.financials.year1,color:'3B82F6'},
+        {year:'Year 2',rev:pitchDeckData.financials.year2,color:'059669'},
+        {year:'Year 3',rev:pitchDeckData.financials.year3,color:'7C3AED'}
+      ];
+      years.forEach((y,i)=>{
+        const x=1+i*2.7;
+        slide.addShape(pptx.ShapeType.rect,{x,y:1.8,w:2.5,h:1.5,fill:{color:y.color,transparency:90},line:{color:y.color,width:2}});
+        slide.addText(y.year,{x,y:1.9,w:2.5,h:.4,fontSize:14,color:'374151',align:'center'});
+        slide.addText(y.rev,{x,y:2.4,w:2.5,h:.8,fontSize:20,bold:true,color:y.color,align:'center'});
+      });
+      slide.addText('Key Assumptions',{x:.5,y:3.8,w:9,h:.4,fontSize:18,bold:true,color:'374151'});
+      slide.addText(pitchDeckData.financials.assumptions,{x:.5,y:4.2,w:9,h:1,fontSize:14,color:'6B7280'});
+
+      slide=pptx.addSlide(); slide.background={fill:'FFFFFF'};
+      slide.addText('Funding Request',{x:.5,y:.5,w:9,h:.8,fontSize:36,bold:true,color:'1E293B'});
+      slide.addText(pitchDeckData.funding.amount,{x:1,y:1.5,w:8,h:1,fontSize:48,bold:true,color:'059669',align:'center'});
+      slide.addText('Seeking Investment',{x:1,y:2.5,w:8,h:.5,fontSize:18,color:'6B7280',align:'center'});
+      slide.addText('Use of Funds',{x:.5,y:3.2,w:9,h:.5,fontSize:20,bold:true,color:'3B82F6'});
+      slide.addText(pitchDeckData.funding.use,{x:.5,y:3.7,w:9,h:1.5,fontSize:16,color:'374151'});
+
+      slide=pptx.addSlide(); slide.background={fill:'FFFFFF'};
+      slide.addText('Our Team',{x:.5,y:.5,w:9,h:.8,fontSize:36,bold:true,color:'1E293B'});
+      slide.addText('Founder',{x:.5,y:1.5,w:9,h:.5,fontSize:20,bold:true,color:'3B82F6'});
+      slide.addText(pitchDeckData.team.founder,{x:.5,y:2,w:9,h:1.2,fontSize:16,color:'374151'});
+      slide.addText('Team & Advisors',{x:.5,y:3.5,w:9,h:.5,fontSize:20,bold:true,color:'059669'});
+      slide.addText(pitchDeckData.team.team,{x:.5,y:4,w:9,h:1.2,fontSize:16,color:'374151'});
+
+      slide=pptx.addSlide(); slide.background={fill:'F1F5F9'};
+      slide.addText("Let's Connect",{x:1,y:1,w:8,h:1,fontSize:40,bold:true,color:'1E293B',align:'center'});
+      slide.addText('Ready to discuss the opportunity?',{x:1,y:2,w:8,h:.6,fontSize:20,color:'475569',align:'center'});
+      slide.addText(`📧 ${pitchDeckData.contact.email}`,{x:1,y:3,w:8,h:.5,fontSize:18,color:'3B82F6',align:'center'});
+      slide.addText(pitchDeckData.companyName,{x:1,y:4,w:8,h:.6,fontSize:24,bold:true,color:'3B82F6',align:'center'});
+      slide.addText('Thank you for your time',{x:1,y:4.8,w:8,h:.4,fontSize:14,color:'94A3B8',align:'center'});
+
+      pptx.writeFile({ fileName: `${pitchDeckData.companyName}-pitch-deck.pptx` });
+    }
+
+    function generatePDF(){
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('landscape');
+      doc.setFontSize(24); doc.text(pitchDeckData.companyName,148,60,{align:'center'});
+      doc.setFontSize(16); doc.text(pitchDeckData.tagline,148,80,{align:'center'});
+      doc.setFontSize(12); doc.text('AI-Generated Pitch Deck',148,100,{align:'center'});
+
+      const slides=[
+        { title:'Problem', content:pitchDeckData.problem },
+        { title:'Solution', content:pitchDeckData.solution },
+        { title:'Market', content:`Target: ${pitchDeckData.targetMarket}\nSize: ${pitchDeckData.marketSize}` },
+        { title:'Business Model', content:pitchDeckData.businessModel },
+        { title:'Competition', content:`Competitors: ${pitchDeckData.competition}\nAdvantage: ${pitchDeckData.competitiveAdvantage}` },
+        { title:'Traction', content:`Users: ${pitchDeckData.traction.users}\nGrowth: ${pitchDeckData.traction.growth}\nPartnerships: ${pitchDeckData.traction.partnerships}\nRevenue: ${pitchDeckData.traction.revenue}` },
+        { title:'Financials', content:`Year 1: ${pitchDeckData.financials.year1}\nYear 2: ${pitchDeckData.financials.year2}\nYear 3: ${pitchDeckData.financials.year3}\nAssumptions: ${pitchDeckData.financials.assumptions}` },
+        { title:'Funding', content:`Amount: ${pitchDeckData.funding.amount}\nUse: ${pitchDeckData.funding.use}` },
+        { title:'Team', content:pitchDeckData.team.founder },
+        { title:'Contact', content:`Email: ${pitchDeckData.contact.email}\nFounder: ${pitchDeckData.contact.founder}` }
+      ];
+      slides.forEach((s)=>{
+        doc.addPage();
+        doc.setFontSize(20); doc.text(s.title,20,30);
+        doc.setFontSize(12);
+        const lines = doc.splitTextToSize(s.content, 250);
+        doc.text(lines, 20, 50);
+      });
+      doc.deletePage(1);
+      doc.save(`${pitchDeckData.companyName}-pitch-deck.pdf`);
+    }
+  </script>
+</body>
+</html>
